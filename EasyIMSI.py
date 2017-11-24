@@ -1,13 +1,9 @@
-import pyshark
-import requests
-import re
-import urllib2
+import pyshark, requests, re, urllib2, subprocess
 from datetime import date
 from termcolor import colored
 
 
 def updatecsv():
-
     print '\nDownloading up to date MCC/MNC table from http://www.mcc-mnc.com/\n'
     list = open('mcc_mnc_list.txt', 'w')
     td_re = re.compile('<td>([^<]*)</td>' * 6)
@@ -42,6 +38,24 @@ def updatecsv():
     main()
 
 
+def freqScan():
+    print '\n\n --- Scanning for frequencies. This will take at least 2 minutes ---\n\n'
+    output = subprocess.check_output('kal -s GSM900 -g 50 -e 20', shell=True, stderr=subprocess.PIPE)
+    splitput = output.splitlines()
+    chancount = 0
+    for i in splitput:
+        try:
+            word = i[1] + i[2] + i[3] + i[4]
+            if word == 'chan':
+                print i.replace('\t', '')
+                chancount += 1
+        except:
+            continue
+    if chancount ==0:
+        print '\n\nNo channels / base units found :(\n\n'
+    print '\n\n Scan Complete \n\n'
+    main()
+
 def towerinfo(cell_mcc, cell_mnc, cell_lac, cell_cid):
     url = "https://us1.unwiredlabs.com/v2/process.php"
     payload = "{" \
@@ -57,7 +71,6 @@ def towerinfo(cell_mcc, cell_mnc, cell_lac, cell_cid):
 
 
 def grab_imsi():
-    
     capture = pyshark.LiveCapture(interface='lo')
     mcc_mnc_list = open('mcc_mnc_list.txt', 'r').readlines()
 
@@ -88,15 +101,16 @@ def getUserChoice():
         print '1. Update MCC/MNC List' + colored(' - No current list found in directory\n', 'red')
     print '2. Scan for IMSIs\n'
     print '3. Retrieve cell tower information. (WIP) \n'
+    print '4. Scan for nearby base station frequencies\n'
     print 'Type x to exit\n'
-    u_in = str(raw_input('$: '))
+    u_in = str(raw_input('EasyIMSI: '))
     if u_in == 'x':
         exit()
     return u_in
 
 
 def main():
-    options = ['1','2','3']
+    options = ['1', '2', '3', '4']
     u_in = '0'
     while u_in not in options:
         if u_in != '0':
@@ -112,6 +126,10 @@ def main():
     elif u_in == '3':
         print '\n\n Still WIP \n\n'
         main()
-        #towerinfo()
+        # towerinfo()
+
+    elif u_in == '4':
+        freqScan()
+
 
 main()
