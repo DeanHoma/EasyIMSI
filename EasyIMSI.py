@@ -40,23 +40,36 @@ def updatecsv():
 
 def freqScan():
     print '\n\n --- Scanning for frequencies. This will take at least 2 minutes ---\n\n'
-    output = subprocess.check_output('kal -s GSM900 -g 50 -e 20', shell=True, stderr=subprocess.PIPE)
+    output = subprocess.check_output('kal -s DCS -g 50 -e 20', shell=True, stderr=subprocess.PIPE)
     splitput = output.splitlines()
-    chancount = 0
+    chanlist = ''
     for i in splitput:
         try:
             word = i[1] + i[2] + i[3] + i[4]
             if word == 'chan':
-                print i.replace('\t', '')
-                chancount += 1
+                chanlist += i.replace('\t', '') + '\n'
         except:
             continue
-    if chancount ==0:
-        print '\n\nNo channels / base units found :(\n\n'
+    print chanlist
+    splitchanlist = chanlist.splitlines()
+    print 'Actual Channel Frequencies: '
+    for i in splitchanlist:
+        chanmid_re = re.compile('\d\d\d\.\d')
+        chanoff_re = re.compile('\d\d\.\d\d\d')
+        chanmid = int(float(chanmid_re.search(i).group()) * 1000000)
+        chanoff = int(float(chanoff_re.search(i).group()) * 1000)
+        if '+' in i:
+            chan_actual = chanmid + chanoff
+        else:
+            chan_actual = chanmid - chanoff
+        chan_num = str(i.split(" ")[1])
+        print 'Chan:', str(chan_num), str(chan_actual)
     print '\n\n Scan Complete \n\n'
     main()
 
 def towerinfo(cell_mcc, cell_mnc, cell_lac, cell_cid):
+    capture = pyshark.LiveCapture(interface='lo')
+
     url = "https://us1.unwiredlabs.com/v2/process.php"
     payload = "{" \
               "\"token\": \"94c81460a1a00d\"," \
@@ -80,6 +93,7 @@ def grab_imsi():
                 imsi = str(packet[4].e212_imsi)
                 mcc = packet[4].e212_mcc
                 mnc = str(packet[4].e212_mnc)
+                print imsi
                 for line in mcc_mnc_list:
                     split = line.split(',')
                     if split[0] == mcc and split[2] == mnc:
